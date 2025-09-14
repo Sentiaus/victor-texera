@@ -38,7 +38,6 @@ export interface GuiConfig {
   sharingComputingUnitEnabled: boolean;
   operatorConsoleMessageBufferSize: number;
   defaultLocalUser?: { username?: string; password?: string };
-  expirationTimeInMinutes: number;
   activeTimeInMinutes: number;
 }
 

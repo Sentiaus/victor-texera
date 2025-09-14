@@ -55,8 +55,6 @@ class ConfigResource {
         "password" -> GuiConfig.guiLoginDefaultLocalUserPassword
       ),
       "activeTimeInMinutes" -> GuiConfig.guiWorkflowWorkspaceActiveTimeInMinutes,
-      // flags from the auth.conf if needed
-      "expirationTimeInMinutes" -> AuthConfig.jwtExpirationMinutes
     )
 
   @GET
