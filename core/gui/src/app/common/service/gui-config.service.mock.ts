@@ -48,7 +48,7 @@ export class MockGuiConfigService {
     operatorConsoleMessageBufferSize: 1000,
     defaultLocalUser: { username: "", password: "" },
     expirationTimeInMinutes: 2880,
-    activeTimeInMinutes: 15
+    activeTimeInMinutes: 15,
   };
 
   get env(): GuiConfig {
