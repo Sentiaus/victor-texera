@@ -19,18 +19,10 @@
 
 package edu.uci.ics.texera.web.resource.auth
 
-import edu.uci.ics.texera.auth.JwtAuth.{
-  TOKEN_EXPIRE_TIME_IN_MINUTES,
-  jwtClaims,
-  jwtConsumer,
-  jwtToken
-}
+import edu.uci.ics.texera.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_MINUTES, jwtClaims, jwtToken}
 import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.web.model.http.request.auth.{
-  UserLoginRequest,
-  UserRegistrationRequest
-}
+import edu.uci.ics.texera.web.model.http.request.auth.{UserLoginRequest, UserRegistrationRequest}
 import edu.uci.ics.texera.web.model.http.response.TokenIssueResponse
 import edu.uci.ics.texera.dao.jooq.generated.Tables.USER
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRoleEnum
