@@ -48,7 +48,6 @@ export class AuthService {
   public static readonly GOOGLE_LOGIN_ENDPOINT = "auth/google/login";
 
   private tokenExpirationSubscription?: Subscription;
-//   private refreshTokenSubscription?: Subscription;
 
   constructor(
     private http: HttpClient,
