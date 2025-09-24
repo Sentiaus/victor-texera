@@ -28,7 +28,6 @@ import edu.uci.ics.texera.auth.JwtAuth.{
 import edu.uci.ics.texera.config.UserSystemConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.model.http.request.auth.{
-  RefreshTokenRequest,
   UserLoginRequest,
   UserRegistrationRequest
 }
@@ -105,14 +104,6 @@ class AuthResource {
         TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_MINUTES)))
       case None => throw new NotAuthorizedException("Login credentials are incorrect.")
     }
-  }
-
-  @POST
-  @Path("/refresh")
-  def refresh(request: RefreshTokenRequest): TokenIssueResponse = {
-    val claims = jwtConsumer.process(request.accessToken).getJwtClaims
-    claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_MINUTES.toFloat)
-    TokenIssueResponse(jwtToken(claims))
   }
 
   @POST
