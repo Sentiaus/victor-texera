@@ -30,6 +30,7 @@ describe("DriveService", () => {
   let ngZone: NgZone;
 
   const CONNECT_URL = `${AppSettings.getApiEndpoint()}/auth/google/drive/connect`;
+  const MOCK_CONNECT_RESPONSE = { url: "https://accounts.google.com/o/oauth2/auth?...", apiKey: "test-api-key" };
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -47,7 +48,7 @@ describe("DriveService", () => {
   });
 
   describe("connect", () => {
-    it("fetches the connect URL and opens a popup", () => {
+    it("fetches connect config and opens a popup", () => {
       const mockPopup = { close: vi.fn() } as unknown as Window;
       const openSpy = vi.spyOn(window, "open").mockReturnValue(mockPopup);
 
@@ -55,28 +56,24 @@ describe("DriveService", () => {
 
       const req = httpMock.expectOne(CONNECT_URL);
       expect(req.request.method).toBe("GET");
-      req.flush("https://accounts.google.com/o/oauth2/auth?...");
+      req.flush(MOCK_CONNECT_RESPONSE);
 
-      expect(openSpy).toHaveBeenCalledWith(
-        "https://accounts.google.com/o/oauth2/auth?...",
-        "gdrive-connect",
-        "width=500,height=600"
-      );
+      expect(openSpy).toHaveBeenCalledWith(MOCK_CONNECT_RESPONSE.url, "gdrive-connect", "width=500,height=600");
     });
 
-    it("completes the observable when the popup posts gdrive-connected", fakeAsync(() => {
+    it("emits token and apiKey when the popup posts gdrive-connected", fakeAsync(() => {
       const mockPopup = { close: vi.fn() } as unknown as Window;
       vi.spyOn(window, "open").mockReturnValue(mockPopup);
 
-      let completed = false;
-      service.connect().subscribe({ complete: () => (completed = true) });
+      let result: { token: string; apiKey: string } | undefined;
+      service.connect().subscribe({ next: v => (result = v) });
 
-      httpMock.expectOne(CONNECT_URL).flush("https://accounts.google.com/...");
+      httpMock.expectOne(CONNECT_URL).flush(MOCK_CONNECT_RESPONSE);
 
       ngZone.run(() => {
         window.dispatchEvent(
           new MessageEvent("message", {
-            data: "gdrive-connected",
+            data: JSON.stringify({ type: "gdrive-connected", token: "access-token-123" }),
             origin: window.location.origin,
             source: mockPopup as unknown as MessageEventSource,
           })
@@ -84,7 +81,7 @@ describe("DriveService", () => {
       });
       tick();
 
-      expect(completed).toBe(true);
+      expect(result).toEqual({ token: "access-token-123", apiKey: "test-api-key" });
       expect(mockPopup.close).toHaveBeenCalled();
     }));
 
@@ -95,12 +92,12 @@ describe("DriveService", () => {
       let errorMessage = "";
       service.connect().subscribe({ error: (e: unknown) => (errorMessage = (e as Error).message) });
 
-      httpMock.expectOne(CONNECT_URL).flush("https://accounts.google.com/...");
+      httpMock.expectOne(CONNECT_URL).flush(MOCK_CONNECT_RESPONSE);
 
       ngZone.run(() => {
         window.dispatchEvent(
           new MessageEvent("message", {
-            data: "gdrive-error",
+            data: JSON.stringify({ type: "gdrive-error" }),
             origin: window.location.origin,
             source: mockPopup as unknown as MessageEventSource,
           })
@@ -117,7 +114,7 @@ describe("DriveService", () => {
       let errorMessage = "";
       service.connect().subscribe({ error: (e: unknown) => (errorMessage = (e as Error).message) });
 
-      httpMock.expectOne(CONNECT_URL).flush("https://accounts.google.com/...");
+      httpMock.expectOne(CONNECT_URL).flush(MOCK_CONNECT_RESPONSE);
       tick();
 
       expect(errorMessage).toBe("Popup blocked. Please allow popups for this site.");
@@ -134,11 +131,11 @@ describe("DriveService", () => {
         error: () => (errored = true),
       });
 
-      httpMock.expectOne(CONNECT_URL).flush("https://accounts.google.com/...");
+      httpMock.expectOne(CONNECT_URL).flush(MOCK_CONNECT_RESPONSE);
 
       window.dispatchEvent(
         new MessageEvent("message", {
-          data: "gdrive-connected",
+          data: JSON.stringify({ type: "gdrive-connected", token: "tok" }),
           origin: "https://evil.example.com",
         })
       );
@@ -161,13 +158,13 @@ describe("DriveService", () => {
         error: () => (errored = true),
       });
 
-      httpMock.expectOne(CONNECT_URL).flush("https://accounts.google.com/...");
+      httpMock.expectOne(CONNECT_URL).flush(MOCK_CONNECT_RESPONSE);
 
       // same origin, but source is a different window (not the popup)
       const otherWindow = { close: vi.fn() } as unknown as Window;
       window.dispatchEvent(
         new MessageEvent("message", {
-          data: "gdrive-connected",
+          data: JSON.stringify({ type: "gdrive-connected", token: "tok" }),
           origin: window.location.origin,
           source: otherWindow as unknown as MessageEventSource,
         })

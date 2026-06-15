@@ -37,7 +37,7 @@ import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
 } from "src/app/common/service/workflow-persist/workflow-persist.service";
-import { firstValueFrom } from "rxjs";
+import { firstValueFrom, switchMap } from "rxjs";
 import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/detail/hub-workflow-detail.component";
 import { ActionType, HubService } from "../../../../hub/service/hub.service";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
@@ -265,9 +265,12 @@ export class ListItemComponent implements OnChanges {
   public onClickExportToDrive(): void {
     this.driveService
       .connect()
-      .pipe(untilDestroyed(this))
+      .pipe(
+        switchMap(({ token, apiKey }) => this.driveService.openFolderPicker(token, apiKey)),
+        untilDestroyed(this)
+      )
       .subscribe({
-        next: () => this.notificationService.success("Connected to Google Drive"),
+        next: folder => this.notificationService.success(`Exporting to "${folder.name}"...`),
         error: () => this.notificationService.error("Failed to connect to Google Drive"),
       });
   }

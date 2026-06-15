@@ -49,7 +49,10 @@ describe("ListItemComponent", () => {
 
   beforeEach(async () => {
     const workflowPersistServiceSpy = { updateWorkflowName: vi.fn(), updateWorkflowDescription: vi.fn() };
-    driveServiceMock = { connect: vi.fn().mockReturnValue(EMPTY) } as unknown as Mocked<DriveService>;
+    driveServiceMock = {
+      connect: vi.fn().mockReturnValue(EMPTY),
+      openFolderPicker: vi.fn().mockReturnValue(EMPTY),
+    } as unknown as Mocked<DriveService>;
     notificationServiceMock = { success: vi.fn(), error: vi.fn() } as unknown as Mocked<NotificationService>;
 
     await TestBed.configureTestingModule({
@@ -204,19 +207,20 @@ describe("ListItemComponent", () => {
       expect(driveServiceMock.connect).toHaveBeenCalled();
     });
 
-    it("shows success notification when connect completes", () => {
-      const connect$ = new Subject<void>();
-      driveServiceMock.connect.mockReturnValue(connect$.asObservable());
+    it("shows success notification after connect and folder selection", () => {
+      const connectResult = { token: "tok", apiKey: "key" };
+      const folder = { id: "folder-id", name: "My Folder" };
+      driveServiceMock.connect.mockReturnValue(of(connectResult));
+      driveServiceMock.openFolderPicker.mockReturnValue(of(folder));
 
       component.onClickExportToDrive();
-      connect$.next();
-      connect$.complete();
 
-      expect(notificationServiceMock.success).toHaveBeenCalledWith("Connected to Google Drive");
+      expect(driveServiceMock.openFolderPicker).toHaveBeenCalledWith("tok", "key");
+      expect(notificationServiceMock.success).toHaveBeenCalledWith(`Exporting to "${folder.name}"...`);
     });
 
     it("shows error notification when connect errors", () => {
-      const connect$ = new Subject<void>();
+      const connect$ = new Subject<{ token: string; apiKey: string }>();
       driveServiceMock.connect.mockReturnValue(connect$.asObservable());
 
       component.onClickExportToDrive();
