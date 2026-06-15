@@ -38,9 +38,11 @@ import javax.ws.rs.core.Response
 object GoogleDriveAuthResource {
   private val STATE_TTL_MS = 10 * 60 * 1000L
 
-  // Maps state token → expiresAtMs.
+  // Maps state token → (userId, expiresAtMs).
   // Expired entries are swept out on each getOAuth call to prevent unbounded growth from abandoned flows.
-  private val pendingStates = new ConcurrentHashMap[String, Long]()
+  private val pendingStates = new ConcurrentHashMap[String, (Int, Long)]()
+
+  case class DriveConnectResponse(url: String, apiKey: String)
 }
 
 @Path("/auth/google/drive")
@@ -52,7 +54,7 @@ class GoogleDriveAuthResource extends LazyLogging {
     s"""<html><body>
        |<p style="font-family:sans-serif;padding:20px">$message</p>
        |<script>
-       |window.opener?.postMessage('gdrive-error', window.location.origin);
+       |window.opener?.postMessage(JSON.stringify({type:'gdrive-error'}), window.location.origin);
        |setTimeout(function(){ window.close(); }, 10000);
        |</script>
        |</body></html>""".stripMargin
@@ -66,13 +68,12 @@ class GoogleDriveAuthResource extends LazyLogging {
   @GET
   @Path("/connect")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  @Produces(Array(MediaType.TEXT_PLAIN))
   def getOAuth(): Response = {
     val now = System.currentTimeMillis()
-    pendingStates.entrySet().removeIf(e => now > e.getValue)
+    pendingStates.entrySet().removeIf(e => now > e.getValue._2)
 
     val stateToken = java.util.UUID.randomUUID().toString
-    pendingStates.put(stateToken, now + STATE_TTL_MS)
+    pendingStates.put(stateToken, (0, now + STATE_TTL_MS))
 
     val url = new GoogleAuthorizationCodeRequestUrl(
       clientId,
@@ -82,7 +83,7 @@ class GoogleDriveAuthResource extends LazyLogging {
       .setState(stateToken)
       .build()
 
-    Response.ok(url).build()
+    Response.ok(DriveConnectResponse(url, UserSystemConfig.googleApiKey)).build()
   }
 
   @GET
@@ -97,13 +98,13 @@ class GoogleDriveAuthResource extends LazyLogging {
     }
     try {
       val expiresAt = pendingStates.remove(state)
-      if (expiresAt == null || System.currentTimeMillis() > expiresAt) {
+      if (expiresAt == null || System.currentTimeMillis() > expiresAt._2) {
         return Response
           .ok(errorHtml("Connection failed: the authorisation request expired. Please try again."))
           .build()
       }
 
-      new GoogleAuthorizationCodeTokenRequest(
+      val tokenResponse = new GoogleAuthorizationCodeTokenRequest(
         new NetHttpTransport(),
         GsonFactory.getDefaultInstance,
         clientId,
@@ -112,11 +113,12 @@ class GoogleDriveAuthResource extends LazyLogging {
         redirectUri
       ).execute()
 
+      val token = tokenResponse.getAccessToken
       val html =
-        """<html><body><script>
-          |window.opener.postMessage('gdrive-connected', window.location.origin);
-          |window.close();
-          |</script></body></html>""".stripMargin
+        s"""<html><body><script>
+           |window.opener.postMessage(JSON.stringify({type:'gdrive-connected',token:'$token'}), window.location.origin);
+           |window.close();
+           |</script></body></html>""".stripMargin
       Response.ok(html).build()
     } catch {
       case e: TokenResponseException =>
