@@ -18,9 +18,13 @@
  */
 package org.apache.texera.web.resource.auth
 
+import org.apache.texera.web.resource.auth.GoogleDriveAuthResource.DriveConnectResponse
 import org.scalatest.flatspec.AnyFlatSpec
 
 class GoogleDriveAuthResourceSpec extends AnyFlatSpec {
+
+  private def getConnectUrl(resource: GoogleDriveAuthResource): String =
+    resource.getOAuth().getEntity.asInstanceOf[DriveConnectResponse].url
 
   "GoogleDriveAuthResource" should "return error HTML when code is missing" in {
     val resource = new GoogleDriveAuthResource()
@@ -48,31 +52,27 @@ class GoogleDriveAuthResourceSpec extends AnyFlatSpec {
 
   it should "return a Google OAuth URL containing the drive.file scope" in {
     val resource = new GoogleDriveAuthResource()
-    val response = resource.getOAuth()
-    val url = response.getEntity.toString
+    val url = getConnectUrl(resource)
     assert(url.contains("accounts.google.com"))
     assert(url.contains("drive.file"))
   }
 
   it should "return a Google OAuth URL containing a state parameter" in {
     val resource = new GoogleDriveAuthResource()
-    val response = resource.getOAuth()
-    val url = response.getEntity.toString
+    val url = getConnectUrl(resource)
     assert(url.contains("state="))
   }
 
   it should "return a Google OAuth URL with a localhost redirect URI when no domain is configured" in {
     val resource = new GoogleDriveAuthResource()
-    val response = resource.getOAuth()
-    val url = response.getEntity.toString
+    val url = getConnectUrl(resource)
     assert(url.contains("localhost"))
     assert(url.contains("auth/google/drive/callback"))
   }
 
   it should "reject a state token that has already been used" in {
     val resource = new GoogleDriveAuthResource()
-    val connectResponse = resource.getOAuth()
-    val oauthUrl = connectResponse.getEntity.toString
+    val oauthUrl = getConnectUrl(resource)
     val state = oauthUrl.split("state=").last.split("&").head
 
     // First callback removes the state token (then fails at Google token exchange with empty credentials)
