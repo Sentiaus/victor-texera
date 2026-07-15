@@ -37,10 +37,13 @@ import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
 } from "src/app/common/service/workflow-persist/workflow-persist.service";
-import { firstValueFrom } from "rxjs";
+import { HttpErrorResponse } from "@angular/common/http";
+import { EMPTY, firstValueFrom, switchMap } from "rxjs";
+import { map } from "rxjs/operators";
 import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/detail/hub-workflow-detail.component";
 import { ActionType, HubService } from "../../../../hub/service/hub.service";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
+import { DriveService } from "../../../service/user/google-drive/drive.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
 import { formatCount, formatRelativeTime } from "src/app/common/util/format.util";
 import { DatasetService, DEFAULT_DATASET_NAME } from "../../../service/user/dataset/dataset.service";
@@ -65,6 +68,7 @@ import { FormsModule } from "@angular/forms";
 import { UserAvatarComponent } from "../user-avatar/user-avatar.component";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
+import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 
 @UntilDestroy()
 @Component({
@@ -86,6 +90,7 @@ import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
     UserAvatarComponent,
     NzWaveDirective,
     NzPopconfirmDirective,
+    NzDropDownModule,
   ],
 })
 export class ListItemComponent implements OnChanges {
@@ -110,6 +115,7 @@ export class ListItemComponent implements OnChanges {
   @Input() editable = false;
   private _entry?: DashboardEntry;
   hovering: boolean = false;
+  exportMenuVisible = false;
 
   @Input()
   get entry(): DashboardEntry {
@@ -135,6 +141,7 @@ export class ListItemComponent implements OnChanges {
     private modal: NzModalService,
     private hubService: HubService,
     private downloadService: DownloadService,
+    private driveService: DriveService,
     private cdr: ChangeDetectorRef,
     private notificationService: NotificationService
   ) {}
@@ -256,6 +263,57 @@ export class ListItemComponent implements OnChanges {
       this.downloadService.downloadDataset(this.entry.id, this.entry.name).pipe(untilDestroyed(this)).subscribe();
     }
   };
+
+  public onClickExportToDrive(): void {
+    if (!this.entry.id) return;
+    const entryId = this.entry.id;
+    const entryType = this.entry.type;
+    const entryName = this.entry.name;
+
+    this.driveService
+      .connect()
+      .pipe(
+        untilDestroyed(this),
+        switchMap(({ token, apiKey }) =>
+          this.driveService.openFolderPicker(token, apiKey).pipe(
+            switchMap(folder => {
+              if (entryType === "workflow") {
+                return this.workflowPersistService.retrieveWorkflow(entryId).pipe(
+                  map(workflow => JSON.stringify(workflow.content, null, 2)),
+                  switchMap(json =>
+                    this.driveService
+                      .initiateResumableUpload(token, folder.id, `${entryName}.json`, "application/json")
+                      .pipe(
+                        switchMap(sessionUri =>
+                          this.driveService.uploadToSessionUri(
+                            sessionUri,
+                            new Blob([json], { type: "application/json" })
+                          )
+                        )
+                      )
+                  )
+                );
+              } else if (entryType === "dataset") {
+                return this.driveService
+                  .initiateResumableUpload(token, folder.id, `${entryName}.zip`, "application/zip")
+                  .pipe(
+                    switchMap(sessionUri => this.datasetService.exportToDrive(entryId, sessionUri))
+                  );
+              } else {
+                return EMPTY;
+              }
+            })
+          )
+        )
+      )
+      .subscribe({
+        next: () => this.notificationService.success(`Exported "${entryName}" to Google Drive`),
+        error: (err: unknown) =>
+          this.notificationService.error(
+            (err as HttpErrorResponse)?.error?.message ?? "Failed to export to Google Drive"
+          ),
+      });
+  }
 
   onEditName(): void {
     this.originalName = this.entry.name;

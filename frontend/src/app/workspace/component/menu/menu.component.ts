@@ -18,6 +18,7 @@
  */
 
 import { DatePipe, Location, NgIf, NgFor, NgTemplateOutlet } from "@angular/common";
+import { HttpErrorResponse } from "@angular/common/http";
 import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from "@angular/core";
 import { Router, RouterLink } from "@angular/router";
 import { UserService } from "../../../common/service/user/user.service";
@@ -58,6 +59,7 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { Privilege } from "../../../dashboard/type/share-access.interface";
 import { MarkdownDescriptionComponent } from "../../../dashboard/component/user/markdown-description/markdown-description.component";
+import { DriveService } from "../../../dashboard/service/user/google-drive/drive.service";
 import { NzSpaceCompactItemDirective, NzSpaceCompactComponent } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
@@ -162,6 +164,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   // Computing unit status variables
   public selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
   public computingUnitStatus: ComputingUnitState = ComputingUnitState.NoComputingUnit;
+  public exportMenuVisible = false;
 
   @ViewChild(ComputingUnitSelectionComponent) computingUnitSelectionComponent!: ComputingUnitSelectionComponent;
 
@@ -187,7 +190,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     private panelService: PanelService,
     private computingUnitStatusService: ComputingUnitStatusService,
     protected config: GuiConfigService,
-    private router: Router
+    private router: Router,
+    private driveService: DriveService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -640,6 +644,39 @@ export class MenuComponent implements OnInit, OnDestroy {
     const workflowContentJson = JSON.stringify(workflowContent, null, 2);
     const fileName = this.currentWorkflowName + ".json";
     saveAs(new Blob([workflowContentJson], { type: "text/plain;charset=utf-8" }), fileName);
+  }
+
+  public onClickDriveExportWorkflow(): void {
+    const json = JSON.stringify(this.workflowActionService.getWorkflowContent(), null, 2);
+    const fileName = `${this.currentWorkflowName}.json`;
+    this.driveService
+      .connect()
+      .pipe(
+        untilDestroyed(this),
+        switchMap(({ token, apiKey }) =>
+          this.driveService.openFolderPicker(token, apiKey).pipe(
+            switchMap(folder =>
+              this.driveService
+                .initiateResumableUpload(token, folder.id, fileName, "application/json")
+                .pipe(
+                  switchMap(sessionUri =>
+                    this.driveService.uploadToSessionUri(
+                      sessionUri,
+                      new Blob([json], { type: "application/json" })
+                    )
+                  )
+                )
+            )
+          )
+        )
+      )
+      .subscribe({
+        next: () => this.notificationService.success(`Exported "${this.currentWorkflowName}" to Google Drive`),
+        error: (err: unknown) =>
+          this.notificationService.error(
+            (err as HttpErrorResponse)?.error?.message ?? "Failed to export to Google Drive"
+          ),
+      });
   }
 
   /**

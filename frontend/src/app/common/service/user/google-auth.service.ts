@@ -31,4 +31,8 @@ export class GoogleAuthService {
   getClientId(): Observable<string> {
     return this.http.get(`${AppSettings.getApiEndpoint()}/auth/google/clientid`, { responseType: "text" });
   }
+
+  getDriveApiKey(): Observable<string> {
+    return this.http.get(`${AppSettings.getApiEndpoint()}/auth/google/drive/apikey`, { responseType: "text" });
+  }
 }

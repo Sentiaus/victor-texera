@@ -37,20 +37,33 @@ import {
   USER_PROJECT,
   USER_WORKSPACE,
 } from "../../../../app-routing.constant";
-
+import { DriveService } from "../../../service/user/google-drive/drive.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { EMPTY, Subject } from "rxjs";
 describe("ListItemComponent", () => {
   let component: ListItemComponent;
   let fixture: ComponentFixture<ListItemComponent>;
   let workflowPersistService: Mocked<WorkflowPersistService>;
+  let driveServiceMock: Mocked<DriveService>;
+  let notificationServiceMock: Mocked<NotificationService>;
 
   beforeEach(async () => {
     const workflowPersistServiceSpy = { updateWorkflowName: vi.fn(), updateWorkflowDescription: vi.fn() };
+    driveServiceMock = {
+      connect: vi.fn().mockReturnValue(EMPTY),
+      openFolderPicker: vi.fn().mockReturnValue(EMPTY),
+      initiateResumableUpload: vi.fn().mockReturnValue(EMPTY),
+      uploadToSessionUri: vi.fn().mockReturnValue(EMPTY),
+    } as unknown as Mocked<DriveService>;
+    notificationServiceMock = { success: vi.fn(), error: vi.fn() } as unknown as Mocked<NotificationService>;
 
     await TestBed.configureTestingModule({
       imports: [ListItemComponent, HttpClientTestingModule, BrowserAnimationsModule, RouterTestingModule],
       providers: [
         { provide: WorkflowPersistService, useValue: workflowPersistServiceSpy },
         { provide: UserService, useClass: StubUserService },
+        { provide: DriveService, useValue: driveServiceMock },
+        { provide: NotificationService, useValue: notificationServiceMock },
         NzModalService,
         ...commonTestProviders,
       ],
@@ -187,6 +200,65 @@ describe("ListItemComponent", () => {
       } as unknown as DashboardEntry;
       component.initializeEntry();
       expect(component.entryLink).toEqual([HUB_DATASET_RESULT_DETAIL, "301"]);
+    });
+  });
+
+  describe("Export to Drive", () => {
+    beforeEach(() => {
+      component.entry = {
+        id: 1,
+        name: "My Workflow",
+        type: "workflow",
+        workflow: { isOwner: true },
+        accessibleUserIds: [],
+        likeCount: 0,
+        viewCount: 0,
+        isLiked: false,
+        size: 0,
+      } as unknown as DashboardEntry;
+    });
+
+    it("calls driveService.connect() when onClickExportToDrive is called", () => {
+      component.onClickExportToDrive();
+      expect(driveServiceMock.connect).toHaveBeenCalled();
+    });
+
+    it("shows success notification after the export completes", () => {
+      component.entry = {
+        id: 1,
+        name: "My Workflow",
+        type: "workflow",
+        workflow: { isOwner: true },
+        accessibleUserIds: [],
+        likeCount: 0,
+        viewCount: 0,
+        isLiked: false,
+        size: 0,
+      } as unknown as DashboardEntry;
+
+      const connect$ = new Subject<{ token: string; apiKey: string }>();
+      const picker$ = new Subject<{ id: string; name: string }>();
+      driveServiceMock.connect.mockReturnValue(connect$.asObservable());
+      driveServiceMock.openFolderPicker.mockReturnValue(picker$.asObservable());
+      driveServiceMock.initiateResumableUpload.mockReturnValue(of("https://session-uri"));
+      driveServiceMock.uploadToSessionUri.mockReturnValue(of(undefined));
+      workflowPersistService.retrieveWorkflow = vi.fn().mockReturnValue(of({ content: {} }));
+
+      component.onClickExportToDrive();
+      connect$.next({ token: "tok", apiKey: "key" });
+      picker$.next({ id: "folder-id", name: "My Folder" });
+
+      expect(notificationServiceMock.success).toHaveBeenCalledWith('Exported "My Workflow" to Google Drive');
+    });
+
+    it("shows error notification when connect errors", () => {
+      const connect$ = new Subject<{ token: string; apiKey: string }>();
+      driveServiceMock.connect.mockReturnValue(connect$.asObservable());
+
+      component.onClickExportToDrive();
+      connect$.error(new Error("connection failed"));
+
+      expect(notificationServiceMock.error).toHaveBeenCalledWith("Failed to export to Google Drive");
     });
   });
 });
