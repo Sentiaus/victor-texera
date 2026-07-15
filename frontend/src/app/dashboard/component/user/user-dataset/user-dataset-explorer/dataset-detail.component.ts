@@ -302,7 +302,6 @@ export class DatasetDetailComponent implements OnInit {
     this.driveService
       .connect()
       .pipe(
-        untilDestroyed(this),
         switchMap(({ token, apiKey }) =>
           this.driveService.openFolderPicker(token, apiKey).pipe(
             switchMap(folder =>
@@ -311,7 +310,8 @@ export class DatasetDetailComponent implements OnInit {
                 .pipe(switchMap(sessionUri => this.datasetService.exportToDrive(did, sessionUri, dvid)))
             )
           )
-        )
+        ),
+        untilDestroyed(this)
       )
       .subscribe({
         next: () => this.notificationService.success(`Exported "${name}" to Google Drive`),
@@ -447,7 +447,6 @@ export class DatasetDetailComponent implements OnInit {
     this.driveService
       .connect()
       .pipe(
-        untilDestroyed(this),
         switchMap(({ token, apiKey }) =>
           this.driveService.openFolderPicker(token, apiKey).pipe(
             switchMap(folder =>
@@ -456,7 +455,8 @@ export class DatasetDetailComponent implements OnInit {
                 .pipe(switchMap(sessionUri => this.datasetService.exportFileToDrive(filePath, sessionUri)))
             )
           )
-        )
+        ),
+        untilDestroyed(this)
       )
       .subscribe({
         next: () => this.notificationService.success(`Exported "${fileName}" to Google Drive`),

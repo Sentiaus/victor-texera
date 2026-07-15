@@ -273,7 +273,6 @@ export class ListItemComponent implements OnChanges {
     this.driveService
       .connect()
       .pipe(
-        untilDestroyed(this),
         switchMap(({ token, apiKey }) =>
           this.driveService.openFolderPicker(token, apiKey).pipe(
             switchMap(folder => {
@@ -304,7 +303,8 @@ export class ListItemComponent implements OnChanges {
               }
             })
           )
-        )
+        ),
+        untilDestroyed(this)
       )
       .subscribe({
         next: () => this.notificationService.success(`Exported "${entryName}" to Google Drive`),

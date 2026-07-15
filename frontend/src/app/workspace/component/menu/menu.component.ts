@@ -652,7 +652,6 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.driveService
       .connect()
       .pipe(
-        untilDestroyed(this),
         switchMap(({ token, apiKey }) =>
           this.driveService.openFolderPicker(token, apiKey).pipe(
             switchMap(folder =>
@@ -668,7 +667,8 @@ export class MenuComponent implements OnInit, OnDestroy {
                 )
             )
           )
-        )
+        ),
+        untilDestroyed(this)
       )
       .subscribe({
         next: () => this.notificationService.success(`Exported "${this.currentWorkflowName}" to Google Drive`),
