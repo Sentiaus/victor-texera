@@ -131,15 +131,6 @@ export class DriveService {
       );
   }
 
-  uploadToSessionUri(sessionUri: string, content: Blob): Observable<void> {
-    return this.http
-      .put(sessionUri, content, {
-        headers: { "Content-Type": content.type },
-        responseType: "text",
-      })
-      .pipe(map(() => undefined));
-  }
-
   private loadPicker(): Promise<void> {
     if (this.pickerLoaded) return Promise.resolve();
     if (typeof gapi === "undefined") return Promise.reject(new Error("Google API (gapi) not loaded"));

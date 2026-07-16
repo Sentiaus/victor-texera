@@ -53,7 +53,6 @@ describe("ListItemComponent", () => {
       connect: vi.fn().mockReturnValue(EMPTY),
       openFolderPicker: vi.fn().mockReturnValue(EMPTY),
       initiateResumableUpload: vi.fn().mockReturnValue(EMPTY),
-      uploadToSessionUri: vi.fn().mockReturnValue(EMPTY),
     } as unknown as Mocked<DriveService>;
     notificationServiceMock = { success: vi.fn(), error: vi.fn() } as unknown as Mocked<NotificationService>;
 
