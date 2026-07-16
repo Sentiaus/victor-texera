@@ -118,6 +118,27 @@ export class DatasetService {
     });
   }
 
+  public exportFileToDrive(filePath: string, sessionUri: string): Observable<void> {
+    return this.http.post<void>(`${AppSettings.getApiEndpoint()}/dataset/drive-export/file`, {
+      filePath,
+      sessionUri,
+    });
+  }
+
+  public exportToDrive(did: number, sessionUri: string, dvid?: number): Observable<void> {
+    let params = new HttpParams();
+    if (dvid !== undefined && dvid !== null) {
+      params = params.set("dvid", dvid.toString());
+    } else {
+      params = params.set("latest", "true");
+    }
+    return this.http.post<void>(
+      `${AppSettings.getApiEndpoint()}/dataset/${did}/drive-export`,
+      { sessionUri },
+      { params }
+    );
+  }
+
   public retrieveAccessibleDatasets(): Observable<DashboardDataset[]> {
     return this.http.get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_LIST_URL}`);
   }

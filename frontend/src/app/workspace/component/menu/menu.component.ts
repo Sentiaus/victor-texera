@@ -647,7 +647,8 @@ export class MenuComponent implements OnInit, OnDestroy {
   }
 
   public onClickDriveExportWorkflow(): void {
-    const json = JSON.stringify(this.workflowActionService.getWorkflowContent(), null, 2);
+    const wid = this.workflowId;
+    if (!wid) return;
     const fileName = `${this.currentWorkflowName}.json`;
     this.driveService
       .connect()
@@ -657,14 +658,7 @@ export class MenuComponent implements OnInit, OnDestroy {
             switchMap(folder =>
               this.driveService
                 .initiateResumableUpload(token, folder.id, fileName, "application/json")
-                .pipe(
-                  switchMap(sessionUri =>
-                    this.driveService.uploadToSessionUri(
-                      sessionUri,
-                      new Blob([json], { type: "application/json" })
-                    )
-                  )
-                )
+                .pipe(switchMap(sessionUri => this.workflowPersistService.exportWorkflowToDrive(wid, sessionUri)))
             )
           )
         ),

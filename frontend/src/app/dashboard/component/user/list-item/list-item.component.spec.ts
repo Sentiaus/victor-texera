@@ -241,8 +241,7 @@ describe("ListItemComponent", () => {
       driveServiceMock.connect.mockReturnValue(connect$.asObservable());
       driveServiceMock.openFolderPicker.mockReturnValue(picker$.asObservable());
       driveServiceMock.initiateResumableUpload.mockReturnValue(of("https://session-uri"));
-      driveServiceMock.uploadToSessionUri.mockReturnValue(of(undefined));
-      workflowPersistService.retrieveWorkflow = vi.fn().mockReturnValue(of({ content: {} }));
+      workflowPersistService.exportWorkflowToDrive = vi.fn().mockReturnValue(of(undefined));
 
       component.onClickExportToDrive();
       connect$.next({ token: "tok", apiKey: "key" });

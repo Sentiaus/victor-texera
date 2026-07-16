@@ -39,7 +39,6 @@ import {
 } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { HttpErrorResponse } from "@angular/common/http";
 import { EMPTY, firstValueFrom, switchMap } from "rxjs";
-import { map } from "rxjs/operators";
 import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/detail/hub-workflow-detail.component";
 import { ActionType, HubService } from "../../../../hub/service/hub.service";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
@@ -277,21 +276,13 @@ export class ListItemComponent implements OnChanges {
           this.driveService.openFolderPicker(token, apiKey).pipe(
             switchMap(folder => {
               if (entryType === "workflow") {
-                return this.workflowPersistService.retrieveWorkflow(entryId).pipe(
-                  map(workflow => JSON.stringify(workflow.content, null, 2)),
-                  switchMap(json =>
-                    this.driveService
-                      .initiateResumableUpload(token, folder.id, `${entryName}.json`, "application/json")
-                      .pipe(
-                        switchMap(sessionUri =>
-                          this.driveService.uploadToSessionUri(
-                            sessionUri,
-                            new Blob([json], { type: "application/json" })
-                          )
-                        )
-                      )
-                  )
-                );
+                return this.driveService
+                  .initiateResumableUpload(token, folder.id, `${entryName}.json`, "application/json")
+                  .pipe(
+                    switchMap(sessionUri =>
+                      this.workflowPersistService.exportWorkflowToDrive(entryId, sessionUri)
+                    )
+                  );
               } else if (entryType === "dataset") {
                 return this.driveService
                   .initiateResumableUpload(token, folder.id, `${entryName}.zip`, "application/zip")

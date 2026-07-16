@@ -398,6 +398,10 @@ describe("MenuComponent", () => {
   });
 
   describe("onClickDriveExportWorkflow", () => {
+    beforeEach(() => {
+      component.workflowId = 1;
+    });
+
     it("calls driveService.connect()", () => {
       component.onClickDriveExportWorkflow();
       expect(driveServiceMock.connect).toHaveBeenCalled();

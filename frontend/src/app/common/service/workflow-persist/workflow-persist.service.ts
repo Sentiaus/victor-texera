@@ -129,6 +129,12 @@ export class WorkflowPersistService {
     );
   }
 
+  public exportWorkflowToDrive(wid: number, sessionUri: string): Observable<void> {
+    return this.http.post<void>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}/export/drive`, {
+      sessionUri,
+    });
+  }
+
   private makeRequestAndFormatWorkflowResponse(url: string): Observable<DashboardWorkflow[]> {
     return this.http.get<DashboardWorkflow[]>(url).pipe(
       map((dashboardWorkflowEntries: DashboardWorkflow[]) =>
