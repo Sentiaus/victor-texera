@@ -70,7 +70,11 @@ describe("MenuComponent", () => {
   let driveServiceMock: Mocked<DriveService>;
 
   beforeEach(async () => {
-    driveServiceMock = { connect: vi.fn().mockReturnValue(EMPTY) } as unknown as Mocked<DriveService>;
+    driveServiceMock = {
+      connect: vi.fn().mockReturnValue(EMPTY),
+      openFolderPicker: vi.fn().mockReturnValue(EMPTY),
+      initiateResumableUpload: vi.fn().mockReturnValue(EMPTY),
+    } as unknown as Mocked<DriveService>;
 
     await TestBed.configureTestingModule({
       imports: [MenuComponent, HttpClientTestingModule, RouterTestingModule.withRoutes([]), NzModalModule],
@@ -414,6 +418,35 @@ describe("MenuComponent", () => {
       component.onClickDriveExportWorkflow();
 
       expect(errorSpy).toHaveBeenCalledWith("Failed to export to Google Drive");
+    });
+
+    it("passes token/apiKey to openFolderPicker, folder id to initiateResumableUpload, and session URI to exportWorkflowToDrive", () => {
+      component.currentWorkflowName = "My Workflow";
+      const connect$ = new Subject<{ token: string; apiKey: string }>();
+      const picker$ = new Subject<{ id: string; name: string }>();
+      driveServiceMock.connect.mockReturnValue(connect$.asObservable());
+      driveServiceMock.openFolderPicker.mockReturnValue(picker$.asObservable());
+      driveServiceMock.initiateResumableUpload.mockReturnValue(of("https://session-uri"));
+      const exportSpy = vi
+        .spyOn(workflowPersistService, "exportWorkflowToDrive")
+        .mockReturnValue(of(undefined));
+      const successSpy = vi.spyOn(notificationService, "success");
+
+      component.onClickDriveExportWorkflow();
+      connect$.next({ token: "tok", apiKey: "key" });
+
+      expect(driveServiceMock.openFolderPicker).toHaveBeenCalledWith("tok", "key");
+
+      picker$.next({ id: "folder-123", name: "My Folder" });
+
+      expect(driveServiceMock.initiateResumableUpload).toHaveBeenCalledWith(
+        "tok",
+        "folder-123",
+        "My Workflow.json",
+        "application/json"
+      );
+      expect(exportSpy).toHaveBeenCalledWith(1, "https://session-uri");
+      expect(successSpy).toHaveBeenCalledWith('Exported "My Workflow" to Google Drive');
     });
   });
 

@@ -258,5 +258,29 @@ describe("ListItemComponent", () => {
 
       expect(notificationServiceMock.error).toHaveBeenCalledWith("Failed to export to Google Drive");
     });
+
+    it("passes token/apiKey to openFolderPicker, folder id to initiateResumableUpload, and session URI to exportWorkflowToDrive", () => {
+      const connect$ = new Subject<{ token: string; apiKey: string }>();
+      const picker$ = new Subject<{ id: string; name: string }>();
+      driveServiceMock.connect.mockReturnValue(connect$.asObservable());
+      driveServiceMock.openFolderPicker.mockReturnValue(picker$.asObservable());
+      driveServiceMock.initiateResumableUpload.mockReturnValue(of("https://session-uri"));
+      workflowPersistService.exportWorkflowToDrive = vi.fn().mockReturnValue(of(undefined));
+
+      component.onClickExportToDrive();
+      connect$.next({ token: "tok", apiKey: "key" });
+
+      expect(driveServiceMock.openFolderPicker).toHaveBeenCalledWith("tok", "key");
+
+      picker$.next({ id: "folder-123", name: "My Folder" });
+
+      expect(driveServiceMock.initiateResumableUpload).toHaveBeenCalledWith(
+        "tok",
+        "folder-123",
+        "My Workflow.json",
+        "application/json"
+      );
+      expect(workflowPersistService.exportWorkflowToDrive).toHaveBeenCalledWith(1, "https://session-uri");
+    });
   });
 });
